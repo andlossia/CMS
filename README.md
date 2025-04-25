@@ -1,39 +1,39 @@
-## 📦 SchemaFirst: Smart System for Dynamically Generating Applications from Schemas
 
-### 🧠 Core Idea
-SchemaFirst is a comprehensive and dynamic development platform based on the "Schema First" principle. It allows you to build complete systems without writing manual models or controllers, through a visual schema definition. The system automatically generates the database, API, and frontends based on those definitions.
+# 📦 SchemaFirst: Smart System for Dynamically Generating Applications from Schemas
 
----
-
-### 🌀 Flexible Usage Modes
-- 🧩 **Backend Only**: Use SchemaFirst as a customizable, scalable backend server.
-- 🖥️ **Frontend Only**: Connect Angular or Flutter frontends to any existing backend API.
-- 🔁 **Backend + Frontend (Default)**: A seamless experience where all layers are synced and auto-generated.
+## 🧠 Core Idea
+SchemaFirst is an advanced platform that empowers developers to create dynamic applications using a "Schema First" approach. By defining schemas visually, the system automatically generates databases, APIs, and user interfaces, enabling you to build entire systems without manually coding models or controllers. This dynamic and flexible platform adapts to any requirement, whether it's backend, frontend, or full-stack development.
 
 ---
 
-### 🌐 Multilingual & Internationalization
-SchemaFirst includes full internationalization (i18n) support:
-- Define default languages per model/interface.
-- Translate fields and texts dynamically per user.
-- Manage and customize translations from the admin panel easily.
+## 🌀 Flexible Usage Modes
+- 🧩 **Backend Only**: Utilize SchemaFirst as a powerful, customizable backend server with automatic model generation.
+- 🖥️ **Frontend Only**: Seamlessly connect Angular or Flutter frontends to any existing API with auto-generated UI components.
+- 🔁 **Backend + Frontend (Default)**: Enjoy a fully integrated solution where the backend and frontend are in sync, both auto-generated based on your schemas.
 
 ---
 
-### 🚀 Why SchemaFirst?
-- ✅ Build full systems without writing models or controllers manually
-- ✅ Auto-generate interactive UI (Forms, Tables, Cards)
-- ✅ Full support for Web & Mobile (Angular + Flutter)
-- ✅ Microservices-ready architecture
-- ✅ Built-in multilingual support
-- ✅ Live synchronization between schema and system components
-- ✅ Centralized management of API protocols
+## 🌐 Multilingual & Internationalization
+SchemaFirst fully supports internationalization (i18n):
+- **Multilingual Fields**: Define default languages for fields and models.
+- **Dynamic Translations**: Translations are handled dynamically per user.
+- **Admin Control**: Easily manage translations, including custom field translations, from the admin panel.
 
 ---
 
-### 🔌 Multi-Protocol API Support
-SchemaFirst supports a wide range of communication protocols:
+## 🚀 Why SchemaFirst?
+- ✅ Build comprehensive systems without manually writing models or controllers.
+- ✅ Automatically generate UI components (Forms, Tables, Cards) based on schema definitions.
+- ✅ Full support for both Web and Mobile (Angular + Flutter).
+- ✅ Scalable microservices architecture with easy protocol integration.
+- ✅ Built-in multilingual and localization capabilities.
+- ✅ Live synchronization of schema changes across backend and frontend.
+- ✅ Centralized API management and custom protocol handling.
 
+---
+
+## 🔌 Multi-Protocol API Support
+SchemaFirst supports a variety of communication protocols:
 - 🌐 REST
 - 🔍 GraphQL
 - 🧼 SOAP
@@ -42,36 +42,36 @@ SchemaFirst supports a wide range of communication protocols:
 - 🛰️ gRPC
 - 📦 MessagePack
 
-> Admins can enable/disable and configure protocols per model or service via a dynamic dashboard.
+> Admins can enable or disable protocols for each model or service, with full configuration available through a dynamic dashboard.
 
 ---
 
-### 🧩 System Components
+## 🧩 System Components
 
-#### 1. Headless CMS + GUI Schema Builder
-- Visual editor to define schemas, relationships, and logic
-- Full support for validation, permissions, and filtering
-- Interactive panels to customize behavior without code
+### 1. Headless CMS + GUI Schema Builder
+- Visual schema editor for defining models, relationships, permissions, and validation.
+- Support for automatic generation of business logic, hooks, and webhooks based on schema configuration.
+- Real-time preview and management of generated UI components (e.g., forms, tables).
 
-#### 2. Self-Generating Backend (Microservices)
-- Auto-generates models, controllers, and CRUD services
-- Hooks, Events, and Webhooks integrated in the schema
-- Auto-generated Swagger documentation with examples
-- Protocol flexibility per service
+### 2. Self-Generating Backend (Microservices)
+- Auto-generates CRUD services, models, and controllers based on schemas.
+- Flexible hooks and events, integrated directly in the schema for full control over business logic.
+- Real-time auto-generated Swagger API documentation with live examples.
+- Support for multiple communication protocols per service.
 
-#### 3. Smart Frontend Engine (Angular + Flutter)
-- UI components generated from schemas
-- Full support for forms, tables, details, filters
-- Customizable design, translation, and validation without manual coding
+### 3. Smart Frontend Engine (Angular + Flutter)
+- UI components like forms, tables, and lists auto-generated from schemas.
+- Complete support for dynamic translation, validation, and custom UI behavior without manual coding.
+- Integration with Angular for web apps and Flutter for mobile apps (Android/iOS).
 
-#### 4. API Gateway & Auth Layer
-- Unified routing, auth, and access control layer
-- Integration with OAuth2 / JWT / Custom Tokens
-- Fine-grained access control per model and protocol
+### 4. API Gateway & Auth Layer
+- Unified API routing, access control, and authentication mechanisms.
+- Integration with OAuth2, JWT, and custom authentication systems.
+- Fine-grained control of user roles and permissions per model and protocol.
 
 ---
 
-### 📐 System Architecture
+## 📐 System Architecture
 
 ```
 ┌────────────┐       ┌──────────────────────┐       ┌───────────────┐
@@ -88,54 +88,53 @@ SchemaFirst supports a wide range of communication protocols:
 
 ---
 
-### ⚙️ How It Works
-1. Define schemas visually in the GUI.
-2. Schemas are stored in the database.
-3. Backend & frontend code is generated automatically.
-4. Schemas drive documentation, protocols, events, and UI.
-5. Any schema update is reflected immediately across the system.
+## ⚙️ How It Works
+1. **Visual Schema Definition**: Define schemas through the GUI.
+2. **Schema Storage**: Schemas are stored in a unified central database (AdminDB).
+3. **Auto-Generation**: Both backend and frontend code are automatically generated based on the schema.
+4. **Real-time Sync**: Any schema updates immediately reflect across both backend and frontend.
+5. **Protocol Flexibility**: Choose and enable communication protocols per service, with auto-generated documentation.
 
 ---
 
-### 🎯 Use Cases
-- CMS & Content Platforms
-- Multi-entity SaaS Applications
-- Education / eCommerce / Subscription Systems
-- Smart Internal Admin Panels
-- Dynamic No-Code Builders
+## 🎯 Use Cases
+- CMS & Content Management Platforms
+- Multi-tenant SaaS Applications
+- Education, eCommerce, and Subscription Systems
+- Dynamic Admin Panels and Internal Systems
+- No-Code Builders for Non-technical Users
 
 ---
 
-### 🔮 Coming Soon
-- Visual Workflow Builder
-- Real-time Stream Layer
-- Custom Code Injection in Schema
-- Theme & Layout Builder
-- Auto-generation of Flutter Web interfaces
+## 🔮 Coming Soon
+- **Visual Workflow Builder**: For complex automation and event handling.
+- **Real-time Stream Layer**: For live data feeds and events.
+- **Custom Code Injection**: Allow custom code snippets within schemas.
+- **Theme & Layout Builder**: For customizable frontend designs.
+- **Flutter Web Support**: Auto-generation of Flutter Web interfaces.
 
 ---
 
-### 🧠 Philosophy
-> One schema defines everything. No code repetition. No manual layering. 
-> The system is based on instant generation — any change in schema reflects across the backend and frontend in real time.
+## 🧠 Philosophy
+> One schema drives everything. No manual coding, no repetitive processes. The system auto-generates everything in real-time, making changes instantaneous across the entire application stack.
 
 ---
 
-### ✍️ Developer Notes
-- Full support for external scripts as Actions or Events
-- Schemas are extensible and support custom project-level properties
-- Export/import schema configurations between environments
-- APIs are frontend-agnostic — compatible with React, Vue, or CLI tools
+## ✍️ Developer Notes
+- Full support for external actions or events through schema configurations.
+- Schemas can be extended with custom properties for project-specific logic.
+- Export and import schemas between environments for seamless deployment.
+- Frontend-agnostic APIs — compatible with React, Vue, or any frontend framework via auto-generated endpoints.
 
 ---
 
-### 🧩 Tech Stack
-- Backend: Node.js + Express + MongoDB
-- Frontend: Angular + Flutter (Mobile + Web)
-- Communication: REST, GraphQL, WebSockets, SOAP, gRPC, SSE, MsgPack
-- DevOps: Docker, Nginx, PM2, Swagger UI
+## 🧩 Tech Stack
+- **Backend**: Node.js + Express + MongoDB (or SQL-based DB)
+- **Frontend**: Angular + Flutter (Web + Mobile)
+- **Communication**: REST, GraphQL, WebSockets, SOAP, gRPC, SSE, MsgPack
+- **DevOps**: Docker, Nginx, PM2, Swagger UI
 
 ---
 
-### 📣 Ready to build your system in minutes?
+## 📣 Ready to build your system in minutes?
 Start with your schema — SchemaFirst handles the rest ⚡
