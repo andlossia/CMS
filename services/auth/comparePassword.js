@@ -1,7 +1,16 @@
-const bcrypt = require('bcrypt');
-
+const argon2 = require('argon2');
 
 module.exports = async function comparePassword(plainText, hashedPassword) {
-  if (!plainText || !hashedPassword) return false;
-  return bcrypt.compare(plainText, hashedPassword);
+  try {
+    if (!plainText || !hashedPassword) return false;
+
+    const match = await argon2.verify(hashedPassword, plainText, {
+      type: argon2.argon2id
+    });
+
+    return match;
+  } catch (err) {
+    console.error('comparePassword error:', err);
+    return false;
+  }
 };
