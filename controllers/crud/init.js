@@ -1,3 +1,9 @@
+
+
+const { checkUniqueFields } = require('./../../utils/validateUniqueFields');
+const { getSchemaValidator } = require('./../../utils/schemaValidator');
+const auditTrail = require('../../middlewares/audit');
+const { adminDB } = require('../../database');
 const singleCreate = require('./single/create');
 const bulkCreate = require('./bulk/create');
 const singleRead = require('./single/read');
@@ -6,26 +12,21 @@ const singleUpdate = require('./single/update');
 const bulkUpdate = require('./bulk/update');
 const singleDelete = require('./single/delete');
 const bulkDelete = require('./bulk/delete');
-
-const { checkUniqueFields } = require('./../../utils/validateUniqueFields');
-const { getSchemaValidator } = require('./../../utils/schemaValidator');
-const auditTrail = require('../../middlewares/audit');
-const { adminDB } = require('../../database');
-
 const initController = (Model, modelName) => {
-  // const validator = getSchemaValidator(modelName, adminDB);
+
+const validator = getSchemaValidator(modelName, adminDB);
 const wrapWithAudit = (middlewares, { skip = false } = {}) =>
   skip ? middlewares : [...middlewares, auditTrail()];
 
   return {
     createItem: wrapWithAudit([
-      // validator,
+      validator,
       checkUniqueFields(Model, modelName),
       singleCreate(Model, modelName)
     ]),
 
     createManyItems: wrapWithAudit([
-      // validator,
+      validator,
       checkUniqueFields(Model, modelName),
       bulkCreate(Model, modelName)
     ]),
@@ -38,13 +39,13 @@ const wrapWithAudit = (middlewares, { skip = false } = {}) =>
     getMyItems: singleRead.readMyItems(Model, modelName),
 
     updateItem: wrapWithAudit([
-      // validator,
+      validator,
       checkUniqueFields(Model, modelName, true),
       singleUpdate(Model, modelName)
     ]),
 
     updateManyItems: wrapWithAudit([
-      // validator,
+      validator,
       checkUniqueFields(Model, modelName, true),
       bulkUpdate(Model, modelName)
     ]),
