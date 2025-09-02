@@ -31,33 +31,30 @@ const registerDynamicRoutes = async () => {
       const collection = normalizeCollectionName(name.plural);   
       const modelName = normalizeCollectionName(name.singular); 
 
-      if (modelName === 'auth') {
-    router.post(`/${endpoint}`, async (req, res, next) => {
-      const doc = req.body;
+   if (modelName === 'auth') {
+        router.post(`/${endpoint}`, async (req, res) => {
+          const doc = req.body;
+          try {
+            await authHandler(
+              doc,
+              () => {}, // dummy next
+              {
+                adminDB: require('../database').adminDB(),
+                dataDB: require('../database').dataDB(),
+                signToken: require('../utils/token').signToken,
+                require
+              }
+            );
 
-      try {
-        // محاكاة doc / next / context ← نفس بيئة الـ hook
-        await authHandler(
-          doc,
-          () => {}, // dummy next
-          {
-            adminDB: require('../database').adminDB(),
-            dataDB: require('../database').dataDB(),
-            signToken: require('../utils/token').signToken,
-            require // لو بتحتاجه داخل الهاندلر
+            const response = doc._response || { message: 'No response' };
+            res.status(response.success === false ? 400 : 200).json(response);
+          } catch (err) {
+            console.error('❌ Error in /auth handler:', err);
+            res.status(500).json({ message: 'Internal auth error', error: err.message });
           }
-        );
-
-        const response = doc._response || { message: 'No response' };
-        res.status(response.success === false ? 400 : 200).json(response);
-      } catch (err) {
-        console.error('❌ Error in /auth handler:', err);
-        res.status(500).json({ message: 'Internal auth error', error: err.message });
+        });
+        continue;
       }
-    });
-
-    continue; // تخطى توليد CRUD
-  }
 
 
       const exists = await loadAllCollections().then(collections => collections.includes(collection));
@@ -189,3 +186,4 @@ router.post('/upload-complete', authenticate, uploadComplete);
 
 
 module.exports = router;
+
