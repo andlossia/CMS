@@ -7,17 +7,17 @@ const auditTrail = () => async (req, res, next) => {
     const ip = req.ip;
     const userAgent = req.headers['user-agent'];
 
-    const trimObject = (obj) =>
-      obj?.toObject?.() || (typeof obj === 'object' ? obj : null);
+    const trimObject = (obj) => obj?.toObject?.() || (typeof obj === 'object' ? obj : null);
 
-    if (req.audit?.bulk) {
+    // ✅ bulk create audit
+    if (req.audit?.bulk && Array.isArray(req.audit.bulk)) {
       await Promise.all(
         req.audit.bulk.map(entry =>
           Audit.create({
             schemaName: entry.modelName,
             documentId: new mongoose.Types.ObjectId(entry.documentId),
             action: entry.action,
-            performedBy: userId,
+            performedBy: userId || null,
             changes: {
               ...(entry.before ? { before: trimObject(entry.before) } : {}),
               ...(entry.after ? { after: trimObject(entry.after) } : {})
@@ -26,13 +26,15 @@ const auditTrail = () => async (req, res, next) => {
           })
         )
       );
-    } else if (req.audit) {
+    } 
+    // ✅ single create/update/delete audit
+    else if (req.audit) {
       const { modelName, documentId, action, before, after } = req.audit;
       await Audit.create({
         schemaName: modelName,
         documentId: new mongoose.Types.ObjectId(documentId),
         action,
-        performedBy: userId,
+        performedBy: userId || null,
         changes: {
           ...(before ? { before: trimObject(before) } : {}),
           ...(after ? { after: trimObject(after) } : {})
