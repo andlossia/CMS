@@ -1,43 +1,73 @@
-const comparePassword = require('../comparePassword');
+const argon2 = require('argon2');
 const { loadCollection } = require('../../../database');
 
 exports.handle = async (doc, next, context, { providerKey, identifier, payload, providerPlugin }) => {
-  const { signToken } = context;
+  try {
+    const { signToken } = context;
 
-  const accounts = loadCollection('authentications')
-  let account = await accounts.findOne({ provider: providerKey, identifier });
-
-  if (!account) {
-    throw new Error('Account not found');
-  }
-
-  if (providerPlugin && typeof providerPlugin.providerRequest === 'function') {
-    const externalAuth = await providerPlugin.providerRequest(payload);
-
-    if (!externalAuth || !externalAuth.account) {
-      throw new Error('External provider authentication failed');
+    const accounts = await loadCollection('authentications');
+    if (!accounts || typeof accounts.findOne !== 'function') {
+      throw new Error('Failed to load accounts collection');
     }
 
-    account = externalAuth.account;
-  } else {
-    const hash = account?.local?.password_hash || '';
-    const match = await comparePassword(payload.secret, hash);
-    if (!match) throw new Error('Invalid password');
-  }
+    let account = await accounts.findOne({ provider: providerKey, identifier });
+    if (!account) {
+      console.log('⚠️ Account not found in authentications. Trying to sync with users collection...');
+      
+      const users = await loadCollection('users');
+      const user = await users.findOne({ email: identifier });
+      
+      if (!user) {
+        throw new Error('Account not found');
+      }
 
-  const token = signToken({ userId: account.userId, provider: providerKey }, '1h');
-
-  doc._skipInsert = true;
-  doc._response = {
-    success: true,
-    message: 'Login successful',
-    token,
-    data: {
-      userId: account.userId,
-      identifier,
-      provider: providerKey
+      account = {
+        userId: user._id,
+        provider: providerKey,
+        identifier,
+        local: {}
+      };
+      await accounts.insertOne(account);
+      console.log('ℹ️ Auth record created for existing user');
     }
-  };
 
-  return next();
+    if (providerPlugin && typeof providerPlugin.providerRequest === 'function') {
+      const externalAuth = await providerPlugin.providerRequest(payload);
+      if (!externalAuth || !externalAuth.account) {
+        throw new Error('External provider authentication failed');
+      }
+      account = externalAuth.account;
+    } else {
+      if (!account.local?.password_hash) {
+        throw new Error('No password set for this account');
+      }
+
+      const match = await argon2.verify(account.local.password_hash, payload.secret);
+      if (!match) throw new Error('Invalid password');
+    }
+
+    const token = signToken({ userId: account.userId, provider: providerKey }, '1h');
+
+    doc._skipInsert = true;
+    doc._response = {
+      success: true,
+      message: 'Login successful',
+      token,
+      data: {
+        userId: account.userId,
+        provider: providerKey,
+        identifier
+      }
+    };
+
+    return next();
+  } catch (err) {
+    doc._skipInsert = true;
+    doc._response = {
+      success: false,
+      message: 'Sign-in failed',
+      error: err.message
+    };
+    return next();
+  }
 };
