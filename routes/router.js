@@ -8,7 +8,7 @@ const normalizeCollectionName = require('../helpers/normalizeCollectionName');
 const { processPayment } = require('../services/payment/processPayment');
 const { loadAllCollections, loadAllSchemas, createCollection, dataDB , loadMetadata, loadSchema} = require('../database');
 const initController = require('../controllers/crud/init');
-const authHandler = require('../services/auth/action'); // أو حسب مسار `action.js`
+const authHandler = require('../services/auth/action'); 
 
 
 const router = express.Router();
@@ -25,11 +25,11 @@ const registerDynamicRoutes = async () => {
     for (const schema of schemas) {
       const { name, fields = [] } = schema;
 
-      if (!name?.singular || !name?.plural) continue;
+      if (!name?.endpoint || !name?.collection) continue;
 
-      const endpoint = normalizeCollectionName(name.singular); 
-      const collection = normalizeCollectionName(name.plural);   
-      const modelName = normalizeCollectionName(name.singular); 
+      const endpoint = normalizeCollectionName(name.endpoint); 
+      const collection = normalizeCollectionName(name.collection);   
+      const modelName = normalizeCollectionName(name.endpoint); 
 
    if (modelName === 'auth') {
         router.post(`/${endpoint}`, async (req, res) => {
@@ -186,4 +186,3 @@ router.post('/upload-complete', authenticate, uploadComplete);
 
 
 module.exports = router;
-

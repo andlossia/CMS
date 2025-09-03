@@ -15,8 +15,8 @@ const registerCollections = async (dataDB, onlyList = [], collections = {}) => {
     const schemaDoc = await SchemaModel.findOne({
       $or: [
         { collectionName: normalizedName },
-        { 'name.plural': rawName },
-        { 'name.plural': { $regex: new RegExp('^' + rawName + '$', 'i') } }
+        { 'name.collection': rawName },
+        { 'name.collection': { $regex: new RegExp('^' + rawName + '$', 'i') } }
       ]
     });
 

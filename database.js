@@ -3,25 +3,37 @@ const { MongoClient } = require('mongodb');
 const dotenv = require('dotenv');
 dotenv.config();
 
+/** ------------------------------
+ *  Logger بسيط لتوحيد الإخراج
+ * ------------------------------ */
+const logger = {
+  info: (msg, ...args) => console.log(`ℹ️ ${msg}`, ...args),
+  success: (msg, ...args) => console.log(`✅ ${msg}`, ...args),
+  warn: (msg, ...args) => console.warn(`⚠️ ${msg}`, ...args),
+  error: (msg, ...args) => console.error(`💥 ${msg}`, ...args),
+};
+
 let mongoClient;
 let adminDB, dataDB;
 let isDBInitialized = false;
 let supportsChangeStreams = false;
 
+/** ------------------------------
+ *  Schemas Operations
+ * ------------------------------ */
+
 async function loadAllSchemas() {
-  const schemas = await adminDB.collection('schemas').find({}).toArray();
-  return schemas;
+  return await adminDB.collection('schemas').find({}).toArray();
 }
 
 
 async function loadSchema(endpoint) {
-  const schema = await adminDB.collection('schemas').findOne({ 'name.singular': endpoint });
-  return schema;
+  return await adminDB.collection('schemas').findOne({ 'name.endpoint': endpoint });
 }
 
+
 async function loadMetadata(ui) {
-  const metadata = await adminDB.collection('metadata').findOne({ ui });
-  return metadata;
+  return await adminDB.collection('metadata').findOne({ ui });
 }
 
 
@@ -31,6 +43,10 @@ async function createSchema(schema) {
   return result.insertedId.toString();
 }
 
+/** ------------------------------
+ *  Collections Operations
+ * ------------------------------ */
+
 
 async function loadAllCollections() {
   const collections = await dataDB.listCollections().toArray();
@@ -38,13 +54,18 @@ async function loadAllCollections() {
 }
 
 async function loadCollection(collectionName) {
-  const collection = await dataDB.collection(collectionName);
-  return collection;
+  return dataDB.collection(collectionName);
 }
+
 
 async function createCollection(collectionName) {
   await dataDB.createCollection(collectionName);
 }
+
+/** ------------------------------
+ *  Utils
+ * ------------------------------ */
+
 
 async function checkChangeStreamSupport() {
   try {
@@ -58,14 +79,19 @@ async function checkChangeStreamSupport() {
 
     await testWatch.close();
     supportsChangeStreams = true;
-    console.log('✅ Change Streams are supported by your MongoDB cluster.');
+    logger.success('Change Streams are supported by your MongoDB cluster.');
     return true;
   } catch (err) {
-    console.warn('⚠️ Change Streams are NOT supported on this cluster.');
-    console.error('💥 Reason:', err.message || err);
+    logger.warn('Change Streams are NOT supported on this cluster.');
+    logger.error('Reason:', err.message || err);
     return false;
   }
 }
+
+/** ------------------------------
+ *  Database Connection
+ * ------------------------------ */
+
 
 const connectToDatabase = async () => {
   try {
@@ -85,33 +111,36 @@ const connectToDatabase = async () => {
 
     mongoose.set('strictPopulate', false);
 
-
-    console.log(`${process.env.PROJECT_NAME} Database connected successfully`);
+    logger.success(`${process.env.PROJECT_NAME} Database connected successfully`);
     isDBInitialized = true;
     supportsChangeStreams = await checkChangeStreamSupport();
 
     return { adminDB, dataDB };
   } catch (err) {
-    console.error('MongoDB connection error:', err);
+    logger.error('MongoDB connection error:', err);
     process.exit(1);
   }
 };
 
+
 const getDataDBCollection = (collectionName) => {
   if (!dataDB) throw new Error('dataDB is not initialized');
   return dataDB.collection(collectionName);
-
 };
+
 
 const closeConnections = async () => {
   if (mongoClient) {
     await mongoClient.close();
-    console.log('MongoClient connection closed');
+    logger.info('MongoClient connection closed');
   }
   await mongoose.disconnect();
-  console.log('Mongoose connection closed');
+  logger.info('Mongoose connection closed');
 };
 
+/** ------------------------------
+ *  Exports
+ * ------------------------------ */
 module.exports = {
   connectToDatabase,
   loadAllCollections,

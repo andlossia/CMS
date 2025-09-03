@@ -15,33 +15,43 @@ const singleRead = {
     }
   },
 
-  readMyItems: (Model, modelName) => async (req, res) => {
-    try {
-      const currentUser = req.user || req.anonymous_id || req.user._id ;
-      const items = await Model.find({ currentUser });
-      res.success(items);
-    } catch (error) {
-      res.internalServerError({
-        message: `Error fetching ${modelName}`,
-        error: error.message,
-      });
+readMyItems: (Model, modelName) => async (req, res) => {
+  try {
+    const currentUserId = req.user?.userId;
+    if (!currentUserId) {
+      return res.unauthorized({ msg: 'User not authenticated' });
     }
-  },
+
+    const userField = Model.userField || 'userId'; 
+    const items = await Model.find({ [userField]: currentUserId });
+ 
+
+    res.success(items);
+  } catch (error) {
+    res.internalServerError({
+      message: `Error fetching ${modelName}`,
+      error: error.message,
+    });
+  }
+},
 
   readItemBySlug: (Model, modelName) => async (req, res) => {
-    try {
-      const item = await Model.findOne({ slug: req.params.slug });
-      if (!item) {
-        return res.notFound({ message: `${modelName} not found` });
-      }
-      res.success(item);
-    } catch (error) {
-      res.internalServerError({
-        message: `Error fetching ${modelName}`,
-        error: error.message,
-      });
+  try {
+    const item = await Model.findOne({ slug: req.params.slug })  
+      .lean();
+
+    if (!item) {
+      return res.notFound({ message: `${modelName} not found` });
     }
-  },
+    res.success(item);
+  } catch (error) {
+    res.internalServerError({
+      message: `Error fetching ${modelName}`,
+      error: error.message,
+    });
+  }
+}
+,
 
   readItemByField: (Model, modelName, allowedKeys = []) => async (req, res) => {
     const { key, value } = req.params;

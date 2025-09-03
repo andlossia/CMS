@@ -2,13 +2,16 @@ const { loadCollection } = require('../../../database');
 
 exports.handle = async (doc, next, context, { providerKey, identifier, payload, providerPlugin }) => {
   try {
+    // تحميل مجموعة الحسابات
     const accounts = await loadCollection('authentications');
     if (!accounts || typeof accounts.findOne !== 'function') {
       throw new Error('Failed to load accounts collection');
     }
 
+    // البحث عن الحساب
     const account = await accounts.findOne({ provider: providerKey, identifier });
 
+    // ⚠️ لا نفصح للمهاجم إذا الحساب غير موجود
     if (!account) {
       doc._skipInsert = true;
       doc._response = {
@@ -18,9 +21,11 @@ exports.handle = async (doc, next, context, { providerKey, identifier, payload, 
       return next();
     }
 
+    // توليد رمز إعادة تعيين كلمة المرور
     const resetToken = Math.random().toString(36).substring(2, 10).toUpperCase();
     const resetExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 دقيقة
 
+    // تحديث الحساب
     await accounts.updateOne(
       { _id: account._id },
       { $set: { reset_token: resetToken, reset_expires: resetExpires } }

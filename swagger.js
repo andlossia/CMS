@@ -82,8 +82,8 @@ const setupSwagger = async (app) => {
     const components = { schemas: {} };
 
     for (const schema of schemas) {
-      const endpoint = normalizeCollectionName(schema.name?.singular);
-      const collection = normalizeCollectionName(schema.name?.plural);
+      const endpoint = normalizeCollectionName(schema.name?.endpoint);
+      const collection = normalizeCollectionName(schema.name?.collection);
       if (!endpoint || !collection) continue;
 
       const basePath = `/${endpoint}`;

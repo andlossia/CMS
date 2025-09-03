@@ -18,7 +18,14 @@ if (!process.env.API_KEY && process.env.NODE_ENV !== 'development') {
 
 // ─── CORS Configuration ─────────────────────────────────────────────
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()) : '*',
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true); 
+    if (origin.startsWith('http://localhost')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization', 'x-api-key'],
   credentials: true,
@@ -26,6 +33,7 @@ const corsOptions = {
   optionsSuccessStatus: 204,
 };
 app.use(cors(corsOptions));
+
 
 // ─── Middleware Configuration ──────────────────────────────────────
 app.use(express.json());
@@ -53,7 +61,7 @@ const startServer = async () => {
     app.use('/api/v1', apiKeyGuard, require('./routes/router'));
 
     const port = process.env.PORT || 4010;
-    const keyPath = './ssl/private.key';
+    const keyPath = './ssl/privat.key';
     const certPath = './ssl/certificate.crt';
     const isDev = process.env.NODE_ENV === 'development';
     const hasSSL = fs.existsSync(keyPath) && fs.existsSync(certPath);
@@ -61,23 +69,24 @@ const startServer = async () => {
     let server;
     let protocol = 'http';
 
-   if (isDev) {
-  console.warn('⚠️ Development mode: using HTTP');
-  server = http.createServer(app);
-  protocol = 'http';
-} else {
-
-  if (!hasSSL) {
-    throw new Error('❌ SSL certificates not found. HTTPS is required in production.');
-  }
-
+  if (hasSSL) {
   const sslOptions = {
     key: fs.readFileSync(keyPath),
     cert: fs.readFileSync(certPath),
   };
   server = https.createServer(sslOptions, app);
   protocol = 'https';
+  console.log('✅ SSL found: using HTTPS');
+} else {
+  if (isDev) {
+    console.warn('⚠️ SSL not found, but development mode: using HTTP');
+    server = http.createServer(app);
+    protocol = 'http';
+  } else {
+    throw new Error('❌ SSL certificates not found. HTTPS is required in production.');
+  }
 }
+
 
     server.listen(port, () => {
       console.log(`${process.env.PROJECT_NAME} Server: running at ${protocol}://localhost:${port}`);

@@ -3,6 +3,10 @@ const addFormats = require('ajv-formats');
 const ajv = new Ajv({ allErrors: true, useDefaults: true });
 addFormats(ajv);
 
+const normalizeCollectionName = require('../helpers/normalizeCollectionName');
+// استخدم loadSchema و adminDB من database service
+const { loadSchema, adminDB } = require('../database');
+
 function deepSet(obj, path, value) {
   const parts = path.split('.');
   let current = obj;
@@ -31,7 +35,7 @@ function convertToJsonSchema(schemaDoc) {
         break;
       case 'array':
         jsonField.type = 'array';
-        jsonField.items = { type: 'string' }; // تحسين لاحقًا
+        jsonField.items = { type: 'string' };
         break;
       case 'object':
         jsonField.type = 'object';
@@ -40,7 +44,11 @@ function convertToJsonSchema(schemaDoc) {
         if (nested.required.length) jsonField.required = nested.required;
         break;
       case 'relation':
-        jsonField.type = 'string'; // أو objectId
+        jsonField.type = 'string';
+        break;
+      case 'date':
+        jsonField.type = 'string';
+        jsonField.format = 'date-time';
         break;
       default:
         jsonField.type = 'string';
@@ -56,9 +64,15 @@ function convertToJsonSchema(schemaDoc) {
   function convertFields(fields) {
     const props = {};
     const req = [];
+    let oneOfConditions = [];
 
     for (const field of fields) {
-      if (field.enum && field.type === 'string' && typeof field.enum === 'object' && !Array.isArray(field.enum)) {
+      if (
+        field.enum &&
+        field.type === 'string' &&
+        typeof field.enum === 'object' &&
+        !Array.isArray(field.enum)
+      ) {
         const variants = [];
         for (const [variantKey, variantValue] of Object.entries(field.enum)) {
           const variantFields = convertFields(variantValue.fields || []);
@@ -77,7 +91,7 @@ function convertToJsonSchema(schemaDoc) {
         }
 
         deepSet(props, field.name, { type: 'string', enum: Object.keys(field.enum) });
-        props.__oneOfConditions__ = (props.__oneOfConditions__ || []).concat(variants);
+        oneOfConditions = oneOfConditions.concat(variants);
         if (field.required) req.push(field.name);
         continue;
       }
@@ -87,30 +101,65 @@ function convertToJsonSchema(schemaDoc) {
       if (field.required) req.push(field.name);
     }
 
-    return { properties: props, required: req };
+    return { properties: props, required: req, oneOfConditions };
   }
 
-  const { properties, required } = convertFields(schemaDoc.fields || []);
-  const allConditions = properties.__oneOfConditions__ || [];
-  delete properties.__oneOfConditions__;
+  const { properties, required, oneOfConditions } = convertFields(schemaDoc.fields || []);
 
   return {
     $schema: 'http://json-schema.org/draft-07/schema#',
     type: 'object',
     properties,
     required,
-    allOf: allConditions.length ? allConditions : undefined
+    allOf: oneOfConditions.length ? oneOfConditions : undefined
   };
 }
 
-function getSchemaValidator(schemaName, adminDB) {
+async function findSchemaDoc(schemaName) {
+  // 1) حاول loadSchema (إذا كان موجوداً في database.js)
+  if (typeof loadSchema === 'function') {
+    try {
+      const s = await loadSchema(schemaName);
+      if (s) return s;
+    } catch (err) {
+      // لا توقف التنفيذ هنا — نجرب fallback
+      console.warn('loadSchema failed or returned nothing:', err?.message || err);
+    }
+  }
+
+  // 2) fallback: حاول استخدام adminDB() إن كانت موجودة
+  if (typeof adminDB === 'function') {
+    const db = adminDB();
+    if (db && typeof db.collection === 'function') {
+      // حاول البحث بعدة مفاتيح: singular, plural, normalized
+      const attempts = [
+        { q: { 'name.endpoint': schemaName } },
+        { q: { 'name.collection': schemaName } },
+        { q: { 'name.endpoint': schemaName.toLowerCase() } },
+        { q: { 'name.collection': schemaName.toLowerCase() } },
+        { q: { 'name.collection': normalizeCollectionName(schemaName) } }
+      ];
+      for (const a of attempts) {
+        try {
+          const doc = await db.collection('schemas').findOne(a.q);
+          if (doc) return doc;
+        } catch (err) {
+          // ignore and continue
+        }
+      }
+    } else {
+      console.warn('adminDB() returned invalid db instance');
+    }
+  }
+
+  return null;
+}
+
+
+function getSchemaValidator(schemaName) {
   return async (req, res, next) => {
     try {
-      const db = typeof adminDB === 'function' ? adminDB() : adminDB;
-      const schemaDoc = await db
-        .collection('schemas')
-        .findOne({ 'name.plural': schemaName.toLowerCase() });
-
+      const schemaDoc = await findSchemaDoc(schemaName);
       if (!schemaDoc) {
         return res.notFound({ message: `Schema "${schemaName}" not found.` });
       }
@@ -124,8 +173,8 @@ function getSchemaValidator(schemaName, adminDB) {
       if (!allValid) {
         return res.badRequest({
           message: 'Validation failed',
-          errors: validate.errors.map(err => ({
-            field: err.instancePath.replace(/^\//, ''),
+          errors: (validate.errors || []).map(err => ({
+            field: (err.instancePath || '').replace(/^\//, '') || '(root)',
             message: err.message
           }))
         });
@@ -139,9 +188,8 @@ function getSchemaValidator(schemaName, adminDB) {
   };
 }
 
-async function validatePayloadAgainstSchema(schemaName, payload, adminDBInstance) {
-  const db = typeof adminDBInstance === 'function' ? adminDBInstance() : adminDBInstance;
-  const schemaDoc = await db.collection('schemas').findOne({ 'name.singular': schemaName });
+async function validatePayloadAgainstSchema(schemaName, payload) {
+  const schemaDoc = await findSchemaDoc(schemaName);
   if (!schemaDoc) throw new Error(`Schema "${schemaName}" not found`);
 
   const jsonSchema = convertToJsonSchema(schemaDoc);
@@ -149,7 +197,7 @@ async function validatePayloadAgainstSchema(schemaName, payload, adminDBInstance
 
   const valid = validate(payload);
   if (!valid) {
-    const errors = validate.errors.map(e => ({
+    const errors = (validate.errors || []).map(e => ({
       field: e.instancePath.replace(/^\//, '') || '(root)',
       message: e.message
     }));

@@ -1,8 +1,8 @@
 const { buildFilters } = require("../../../utils/filters");
 const { buildSort } = require("../../../utils/sort");
-const { buildAggregation } = require("../../../utils/buildAggregation"); 
-const { parseSmartQuery } = require("../../../helpers/parseSmartQuery");
+const { buildAggregation } = require("../../../utils/buildAggregation");
 const { loadSchema } = require("../../../database");
+const { parseSmartQuery } = require("../../../helpers/parseSmartQuery");
 const { ObjectId } = require("mongodb");
 
 const readItems = (collection, modelName, options = {}) => async (req, res) => {
@@ -30,96 +30,233 @@ const readItems = (collection, modelName, options = {}) => async (req, res) => {
 
   try {
     const currentSchema = await loadSchema(modelName);
+
     if (!currentSchema) {
       return res.badRequest({ message: "Schema not found" });
     }
 
-    const schemaFields = currentSchema.fields.map(f => f.name);
-    const validSearchableFields = currentSchema.fields
-      .filter(f => f.type.toLowerCase() === "string")
-      .map(f => f.name)
-      .filter(f => !(options.excludedFields || []).includes(f));
+    const schemaFields = currentSchema.fields.map((field) => field.name);
+    const fieldTypesMap = Object.fromEntries(
+      currentSchema.fields.map((field) => [field.name, field.type.toLowerCase()])
+    );
 
-    const validSortableFields = currentSchema.fields
-      .filter(f => ["number", "date", "boolean"].includes(f.type.toLowerCase()))
-      .map(f => f.name)
-      .filter(f => !(options.excludedFields || []).includes(f));
+    const dynamicSearchableFields = currentSchema.fields
+      .filter((f) => f.type.toLowerCase() === "string")
+      .map((f) => f.name);
 
+    const dynamicSortableFields = currentSchema.fields
+      .filter((f) => ["number", "date", "boolean"].includes(f.type.toLowerCase()))
+      .map((f) => f.name);
 
-    // Parse variantFilters
-    let parsedVariantFilters = {};
-    try {
-      if (variantFilters) {
-        parsedVariantFilters = JSON.parse(variantFilters);
+    const excludedFields = options.excludedFields || [];
+    const maxKeywordLength = options.maxKeywordLength || 100;
+
+    const validSearchableFields = dynamicSearchableFields.filter(
+      (field) => !excludedFields.includes(field)
+    );
+    const validSortableFields = dynamicSortableFields.filter(
+      (field) => !excludedFields.includes(field)
+    );
+
+    let parsedFilters = {};
+    if (useSmartQuery && keyword?.trim()) {
+      try {
+        parsedFilters = await parseSmartQuery(keyword.trim(), schemaFields);
+      } catch (e) {
+        console.warn("⚠️ Failed to parse smart query:", e.message);
       }
-    } catch {
-      return res.badRequest({ message: "Invalid variantFilters JSON" });
     }
 
-    // Build filters query
-    const filterQuery = buildFilters(
-      { ...filters, ...parsedVariantFilters },
+    const finalFilters = {
+      ...filters,
+      ...parsedFilters,
+      ...(variantFilters ? JSON.parse(variantFilters) : {}),
+    };
+
+    const mockModel = {
+      schema: {
+        paths: Object.fromEntries(
+          Object.entries(fieldTypesMap).map(([field, type]) => {
+            let instance = "String";
+            if (["number", "decimal", "float", "double"].includes(type))
+              instance = "Number";
+            else if (["boolean", "bool"].includes(type)) instance = "Boolean";
+            else if (["date"].includes(type)) instance = "Date";
+            return [field, { instance }];
+          })
+        ),
+      },
+    };
+
+    const query = buildFilters(
+      finalFilters,
       validSearchableFields,
       schemaFields,
       keyword,
       language,
+      maxKeywordLength,
+      mockModel
     );
 
-    // Add lastId if provided (pagination with _id)
     if (lastId) {
       try {
-        filterQuery._id = { $lt: new ObjectId(lastId) };
+        query._id = { $lt: new ObjectId(lastId) };
       } catch {
         return res.badRequest({ message: "Invalid lastId format" });
       }
     }
 
-    // Build aggregation pipeline
-    const aggregationPipeline = [];
+    const sortQuery = random ? null : buildSort(sort, order, validSortableFields);
 
-    // Apply filters
-    if (Object.keys(filterQuery).length > 0) {
-      aggregationPipeline.push({ $match: filterQuery });
+let finalFields = fields;
+if (!fields && populate) {
+  const populateList = Array.isArray(populate) ? populate : populate.split(",");
+  const autoFields = [];
+
+  populateList.forEach(entry => {
+    const [path, selected] = entry.trim().split(":");
+    if (selected) {
+      selected.split("|").forEach(field => {
+        autoFields.push(`${path}.${field}`);
+      });
     }
+  });
 
-    // Count total before limit
-    const countPipeline = [...aggregationPipeline, { $count: "total" }];
-    const countResult = await collection.aggregate(countPipeline);
-    const total = countResult[0]?.total || 0;
+  if (autoFields.length > 0) {
+    finalFields = autoFields.join(",");
+  }
+}
 
-    // Apply sorting
-    if (!random) {
-      const sortQuery = buildSort(sort, order, validSortableFields);
-      if (sortQuery && Object.keys(sortQuery).length > 0) {
-        aggregationPipeline.push({ $sort: sortQuery });
-      }
-    } else {
-      aggregationPipeline.push({ $sample: { size: Number(limit) } });
+
+const aggregationPipeline = [
+  { $match: query },
+  ...buildAggregation(populate, currentSchema.fields, exclude),
+];
+
+
+const unwindedFields = aggregationPipeline
+  .filter(stage => stage.$unwind && typeof stage.$unwind.path === 'string')
+  .map(stage => stage.$unwind.path.replace(/^\$/, '').split('.')[0]);
+
+const uniqueUnwinded = [...new Set(unwindedFields)];
+
+if (uniqueUnwinded.length > 0) {
+  const groupStage = {
+    $group: {
+      _id: "$_id",
+      doc: { $first: "$$ROOT" },
+    },
+  };
+
+  uniqueUnwinded.forEach(field => {
+    groupStage.$group[field] = { $push: `$${field}` };
+  });
+
+  aggregationPipeline.push(groupStage);
+  aggregationPipeline.push({
+  $replaceRoot: { newRoot: "$doc" },
+});
+
+}
+
+
+// 📌 Add custom lookups
+if (joins) {
+  const joinList = Array.isArray(joins) ? joins : joins.split(",");
+  for (const join of joinList) {
+    const [from, localField, foreignField = "_id"] = join
+      .split(":")
+      .flatMap(p => p.split("="));
+    if (from && localField) {
+      aggregationPipeline.push({
+        $lookup: {
+          from: from.trim(),
+          localField: localField.trim(),
+          foreignField: foreignField.trim(),
+          as: from.trim(),
+        },
+      });
     }
+  }
+}
 
-    // Pagination using skip/limit only if not using lastId or random
-    if (!lastId && !random) {
-      const skip = (Number(page) - 1) * Number(limit);
-      aggregationPipeline.push({ $skip: skip });
-      aggregationPipeline.push({ $limit: Number(limit) });
-    } else if (!random) {
-      aggregationPipeline.push({ $limit: Number(limit) });
-    }
+// 📌 Add computed fields
+if (addFields) {
+  try {
+    const parsedFields = typeof addFields === "string" ? JSON.parse(addFields) : addFields;
+    aggregationPipeline.push({ $addFields: parsedFields });
+  } catch (err) {
+    console.warn("Invalid addFields JSON:", err);
+  }
+}
 
-    const items = await collection.aggregate(aggregationPipeline);
+// 📌 Projection
+if (fields && fields.trim()) {
+  const projection = fields.split(",").reduce((acc, f) => {
+    const trimmed = f.trim();
+    if (trimmed) acc[trimmed] = 1;
+    return acc;
+  }, {});
 
-    return res.success({
-      items,
-      total,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        pages: Math.ceil(total / limit)
-      }
-    });
+  aggregationPipeline.push({ $project: projection });
+}
+
+
+// 📌 Sorting
+if (sortQuery && Object.keys(sortQuery).length > 0) {
+  aggregationPipeline.push({ $sort: sortQuery });
+}
+
+// 📌 Paging
+const skipValue = (Number(page) - 1) * Number(limit);
+if (skipValue > 0) aggregationPipeline.push({ $skip: skipValue });
+aggregationPipeline.push({ $limit: Number(limit) });
+
+let result;
+
+if (facet === "true") {
+  result = await collection.aggregate([
+    {
+      $facet: {
+        items: aggregationPipeline,
+        total: [{ $match: query }, { $count: "count" }],
+      },
+    },
+  ]);
+
+  result = result[0] || { items: [], total: [] };
+  const total = result.total[0]?.count || 0;
+
+  
+
+  result = {
+    items: result.items,
+    total,
+    pagination: {
+      page: Number(page),
+      limit: Number(limit),
+      pages: Math.ceil(total / limit),
+    },
+  };
+} else {
+  const items = await collection.aggregate(aggregationPipeline);
+  const total = await collection.countDocuments(query);
+  result = {
+    items,
+    total,
+    pagination: {
+      page: Number(page),
+      limit: Number(limit),
+      pages: Math.ceil(total / limit),
+    },
+  };
+}
+
+
+    res.success({ schema: modelName, result });
   } catch (error) {
-    console.error("readItems error:", error);
-    return res.internalServerError({ message: error.message });
+    console.error("❌ Error in readItems:", error);
+    res.internalServerError({ message: `Error fetching ${modelName}s`, error: error.message });
   }
 };
 

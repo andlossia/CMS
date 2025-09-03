@@ -7,7 +7,7 @@ const createCrudRoutes = (controller) => {
 
   // 📥 READ ROUTES
   router.get('/', controller.getItems);
-  router.get('/me',controller.getMyItems);
+  router.get('/me',authenticate,controller.getMyItems);
   router.get('/slug/:slug', controller.getItemBySlug);
   router.get('/:_id', controller.getItem);
   router.get('/:key/:value', async (req, res, next) => {

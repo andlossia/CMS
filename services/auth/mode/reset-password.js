@@ -11,6 +11,7 @@ exports.handle = async (doc, next, context, { providerKey, identifier, payload, 
       throw new Error('Failed to load accounts collection');
     }
 
+    // البحث عن الحساب بالرمز
     const account = await accounts.findOne({
       provider: providerKey,
       identifier,
@@ -20,10 +21,12 @@ exports.handle = async (doc, next, context, { providerKey, identifier, payload, 
 
     if (!account) throw new Error('Invalid or expired reset token');
 
+    // تشفير كلمة المرور الجديدة
     const passwordHash = providerKey === 'local'
       ? await argon2.hash(secret, { type: argon2.argon2id })
       : null;
 
+    // تحديث الحساب
     const updateData = providerKey === 'local'
       ? { 'local.password_hash': passwordHash }
       : {};

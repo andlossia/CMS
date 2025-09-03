@@ -3,6 +3,7 @@ const { loadSchema, loadCollection } = require('../../../database');
 
 exports.handle = async (doc, next, context, { providerKey, identifier, payload, providerPlugin }) => {
   try {
+    // تحميل الـ schemas
     const authModel = await loadSchema('auth');
     const userModel = await loadSchema('user');
 
@@ -10,12 +11,15 @@ exports.handle = async (doc, next, context, { providerKey, identifier, payload, 
       throw new Error('Missing schema definition');
     }
 
-    const accounts = await loadCollection(authModel.name.plural); 
-    const users = await loadCollection(userModel.name.plural);   
+    // تحميل الـ collections
+    const accounts = await loadCollection(authModel.name.collection); // authentications
+    const users = await loadCollection(userModel.name.collection);    // users
 
+    // التأكد من عدم وجود حساب مسبقًا
     const existing = await accounts.findOne({ provider: providerKey, identifier });
     if (existing) throw new Error('Account already exists');
 
+    // التحقق من مزود خارجي إن وجد
     if (providerPlugin && typeof providerPlugin.providerRequest === 'function') {
       const result = await providerPlugin.providerRequest(payload);
       if (!result || !result.account) {
@@ -23,8 +27,10 @@ exports.handle = async (doc, next, context, { providerKey, identifier, payload, 
       }
     }
 
+    // 🔒 تشفير كلمة المرور
     const passwordHash = await argon2.hash(payload.secret, { type: argon2.argon2id });
 
+    // إنشاء مستخدم جديد
     const userDoc = {
       email: identifier,
       username: identifier.split('@')[0],
@@ -33,6 +39,7 @@ exports.handle = async (doc, next, context, { providerKey, identifier, payload, 
     };
     const userResult = await users.insertOne(userDoc);
 
+    // إنشاء سجل authentication مرتبط بالمستخدم
     const authDoc = {
       userId: userResult.insertedId,
       provider: providerKey,
@@ -46,6 +53,7 @@ exports.handle = async (doc, next, context, { providerKey, identifier, payload, 
     };
     await accounts.insertOne(authDoc);
 
+    // تجهيز الرد
     doc.userId = userResult.insertedId;
     doc.identifier = identifier;
     doc.provider = providerKey;

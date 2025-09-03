@@ -52,7 +52,7 @@ const getSchemaBranch = async (req, res) => {
     const maxDepth = parseInt(depth, 10);
 
     const allSchemas = await loadAllSchemas();
-    const schemaMap = allSchemas.reduce((acc, schema) => ({ ...acc, [schema.name.singular]: schema }), {});
+    const schemaMap = allSchemas.reduce((acc, schema) => ({ ...acc, [schema.name.endpoint]: schema }), {});
     const target = await loadSchema(name);
 
     if (!target) {
@@ -71,7 +71,7 @@ const getSchemaBranch = async (req, res) => {
 
     const getChildren = (parent, level = 0) => {
       if (maxDepth && level >= maxDepth) return [];
-      const children = allSchemas.filter(s => s.parent === parent.name.singular);
+      const children = allSchemas.filter(s => s.parent === parent.name.endpoint);
       return children.flatMap(c => [c, ...getChildren(c, level + 1)]);
     };
 
@@ -87,15 +87,15 @@ const getSchemaBranch = async (req, res) => {
 
     const getSiblings = (node) =>
       node.parent
-        ? allSchemas.filter(s => s.parent === node.parent && s.name.singular !== node.name.singular)
+        ? allSchemas.filter(s => s.parent === node.parent && s.name.endpoint !== node.name.endpoint)
         : [];
 
-    const isLeaf = (node) => !allSchemas.some(s => s.parent === node.name.singular);
+    const isLeaf = (node) => !allSchemas.some(s => s.parent === node.name.endpoint);
 
     const buildTree = (node) => ({
       ...node,
       children: allSchemas
-        .filter(s => s.parent === node.name.singular)
+        .filter(s => s.parent === node.name.endpoint)
         .map(buildTree)
     });
 
@@ -154,7 +154,7 @@ const updateSchema = async (req, res) => {
     }
 
     const result = await adminDB().collection('schemas').updateOne(
-      { 'name.singular': name },
+      { 'name.endpoint': name },
       { $set: schema }
     );
 
@@ -175,7 +175,7 @@ const deleteSchema = async (req, res) => {
   try {
     const { name } = req.params;
 
-    const result = await adminDB().collection('schemas').deleteOne({ 'name.singular': name });
+    const result = await adminDB().collection('schemas').deleteOne({ 'name.endpoint': name });
 
     if (result.deletedCount === 0) {
       return res.notFound({ success: false, message: 'Schema not found' });

@@ -14,11 +14,11 @@ async function parseSmartQuery(queryText, schema, collection, options = {}) {
     throw new Error("Query must be a valid string");
   }
 
-  if (!schema?.name?.plural) {
-    throw new Error("Schema must contain name.plural for index name");
+  if (!schema?.name?.collection) {
+    throw new Error("Schema must contain name.collection for index name");
   }
 
-  const indexName = schema.name.plural;
+  const indexName = schema.name.collection;
 
   console.log("🧠 Vector Search | Query text:", queryText, "| index:", indexName);
 

@@ -163,8 +163,8 @@ async function modelBuilder(schemaDoc) {
     }
   }
 
-  const modelName = normalizeCollectionName(schemaDoc.name?.singular);
-  const collectionName = normalizeCollectionName(schemaDoc.name?.plural);
+  const modelName = normalizeCollectionName(schemaDoc.name?.endpoint);
+  const collectionName = normalizeCollectionName(schemaDoc.name?.collection);
 
   // 🧠 important: check if model already registered to avoid overwrite errors
   if (mongoose.models[modelName]) {

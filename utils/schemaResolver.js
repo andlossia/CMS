@@ -9,8 +9,8 @@ async function resolveSchemaWithInheritance(schemaName, visited = new Set()) {
 
   const schema = await adminDB().collection('schemas').findOne({
     $or: [
-      { 'name.singular': schemaName },
-      { 'name.plural': schemaName }
+      { 'name.endpoint': schemaName },
+      { 'name.collection': schemaName }
     ]
   });
 

@@ -10,6 +10,7 @@ exports.handle = async (doc, next, context, { providerKey, identifier, payload, 
       throw new Error('Failed to load accounts collection');
     }
 
+    // البحث عن الحساب
     let account = await accounts.findOne({ provider: providerKey, identifier });
     if (!account) {
       console.log('⚠️ Account not found in authentications. Trying to sync with users collection...');
@@ -21,6 +22,7 @@ exports.handle = async (doc, next, context, { providerKey, identifier, payload, 
         throw new Error('Account not found');
       }
 
+      // إنشاء auth record جديد إذا لم يكن موجود
       account = {
         userId: user._id,
         provider: providerKey,
@@ -32,12 +34,14 @@ exports.handle = async (doc, next, context, { providerKey, identifier, payload, 
     }
 
     if (providerPlugin && typeof providerPlugin.providerRequest === 'function') {
+      // مزود خارجي
       const externalAuth = await providerPlugin.providerRequest(payload);
       if (!externalAuth || !externalAuth.account) {
         throw new Error('External provider authentication failed');
       }
       account = externalAuth.account;
     } else {
+      // التحقق من كلمة المرور
       if (!account.local?.password_hash) {
         throw new Error('No password set for this account');
       }
@@ -46,8 +50,10 @@ exports.handle = async (doc, next, context, { providerKey, identifier, payload, 
       if (!match) throw new Error('Invalid password');
     }
 
+    // إنشاء JWT token
     const token = signToken({ userId: account.userId, provider: providerKey }, '1h');
 
+    // تجهيز الرد
     doc._skipInsert = true;
     doc._response = {
       success: true,

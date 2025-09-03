@@ -93,8 +93,8 @@ const fieldSchema = new Schema({
 // Main schema
 const schemaSchema = new Schema({
   name: {
-    singular: { type: String, required: true },
-    plural: { type: String, required: true }
+    endpoint: { type: String, required: true },
+    collection: { type: String, required: true }
   },
   isSystem: { type: Boolean, default: false },
   isHidden: { type: Boolean, default: false },

@@ -42,7 +42,7 @@ const createManyItems = (Model, modelName, uniqueFields = []) => {
             modelName,
             documentId: item._id,
             action: 'create',
-            after: item.toJSON()
+            after: item.toJSON() // نسخة صافية للـ audit
           });
         }
 
