@@ -9,7 +9,7 @@ const singleCreate = (Model, modelName, uniqueFields = []) => {
   const schemaValidator = getSchemaValidator(modelName);
 
   return [
-    authenticate,
+    // authenticate,
     schemaValidator,
     checkUniqueFields(uniqueFields, Model, modelName),
     async (req, res, next) => {
