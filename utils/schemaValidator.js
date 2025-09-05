@@ -1,11 +1,10 @@
-const Ajv = require('ajv');
-const addFormats = require('ajv-formats');
-const ajv = new Ajv({ allErrors: true, useDefaults: true });
-addFormats(ajv);
-
 const normalizeCollectionName = require('../helpers/normalizeCollectionName');
-// استخدم loadSchema و adminDB من database service
 const { loadSchema, adminDB } = require('../database');
+const addFormats = require('ajv-formats');
+const Ajv = require('ajv');
+const ajv = new Ajv({ allErrors: true, useDefaults: true });
+
+addFormats(ajv);
 
 function deepSet(obj, path, value) {
   const parts = path.split('.');
@@ -35,7 +34,16 @@ function convertToJsonSchema(schemaDoc) {
         break;
       case 'array':
         jsonField.type = 'array';
-        jsonField.items = { type: 'string' };
+        if (field.fields && field.fields.length > 0) {
+          const nested = convertFields(field.fields);
+          jsonField.items = {
+            type: 'object',
+            properties: nested.properties,
+            required: nested.required.length ? nested.required : undefined
+          };
+        } else {
+          jsonField.items = { type: 'string' };
+        }
         break;
       case 'object':
         jsonField.type = 'object';
@@ -116,22 +124,18 @@ function convertToJsonSchema(schemaDoc) {
 }
 
 async function findSchemaDoc(schemaName) {
-  // 1) حاول loadSchema (إذا كان موجوداً في database.js)
   if (typeof loadSchema === 'function') {
     try {
       const s = await loadSchema(schemaName);
       if (s) return s;
     } catch (err) {
-      // لا توقف التنفيذ هنا — نجرب fallback
       console.warn('loadSchema failed or returned nothing:', err?.message || err);
     }
   }
 
-  // 2) fallback: حاول استخدام adminDB() إن كانت موجودة
   if (typeof adminDB === 'function') {
     const db = adminDB();
     if (db && typeof db.collection === 'function') {
-      // حاول البحث بعدة مفاتيح: singular, plural, normalized
       const attempts = [
         { q: { 'name.endpoint': schemaName } },
         { q: { 'name.collection': schemaName } },
@@ -143,18 +147,13 @@ async function findSchemaDoc(schemaName) {
         try {
           const doc = await db.collection('schemas').findOne(a.q);
           if (doc) return doc;
-        } catch (err) {
-          // ignore and continue
-        }
+        } catch (err) {}
       }
-    } else {
-      console.warn('adminDB() returned invalid db instance');
     }
   }
 
   return null;
 }
-
 
 function getSchemaValidator(schemaName) {
   return async (req, res, next) => {
